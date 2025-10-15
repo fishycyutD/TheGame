@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>TileMap Test</title>
+        <style>
+            #tileForDupe {
+                image-rendering: pixelated;
+                image-rendering: crisp-edges;
+                width: 8.33333333333334%;
+                height: 16.66666666666667%;
+                position: absolute;
+                top: 0px;
+                left: 0px;
+            }
+            #character {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                translate: (-50%, -50%);
+                z-index: 1;
+                image-rendering: pixelated;
+                image-rendering: crisp-edges;
+                width: 50px;
+                height: 100px;
+            }
+            body {
+                overflow: hidden;
+                scroll-behavior: smooth;
+            }
+        </style>
+    </head>
+    <body>
+        <img class="tile" src="Grass.png" id="tileForDupe">
+        <img id="character" src="Textures/Character(front, idle).png">
+        <script type="module" src="yourScript.js"></script>
+        <script>
+
+            /*
+
+            EDITOR CODE
+            Darrick
+
+            CODE MAP:
+            - Variables(in other file)
+                Supporting variables
+                Tile variables
+                other variables
+                Tile position
+                Screen size
+                Tile fit
+            - Functions
+                getTile(tile)
+                changePosition(element)
+                stamp(tile)
+                path()
+            - Event Listeners
+                Keydown
+                Keyup
+                Wheel
+
+            Change the imports here if you change the other files
+            */
+            //supporting variables
+            let interval;
+            let time = 0;
+            let keydown = false;
+            let moveSpeed = 10; //speed
+            let sprintSpeed = 20; //sprint speed
+            solidTiles = [];
+            airTiles = [];
+
+
+            
+            const character = document.getElementById("character");
+            const tiles = document.getElementsByClassName("tile");
+            const tileForDupe = document.getElementById("tileForDupe");
+            let map = [];
+            let tileNumber = 0;
+            
+            //tile position
+            let tileX = 0;
+            let tileY = 0;
+            //screen size
+            let screensizeW = window.innerWidth;
+            let screensizeH = window.innerHeight;
+            //tile fit
+            let width = window.getComputedStyle(tileForDupe).width;
+            let height = window.getComputedStyle(tileForDupe).height;
+            if (width.includes("px")) {
+                width = parseFloat(width.replace(/px/g, ""));
+                height = parseFloat(height.replace(/px/g, ""));
+            }
+            const tileFitX = Math.floor(screensizeW/width);
+            const tileFitY = Math.floor(screensizeH/height);
+            let currentFitX = 0;
+            let currentFitY = 0;
+            let PercentageX = screensizeW/tileFitX;
+            let PercentageY = screensizeH/tileFitY;
+
+            //PBR is used for calculations of tiles
+            /* Percentage(screensize/tileFit) / Base(screensize) = Rate(size of each tile) */
+            let RateX = PercentageX/screensizeW;
+            let RateY = PercentageY/screensizeH;
+            const ashswag = {
+                name: "corrupted",
+                source: "Textures/ashswag.png",
+                solid: false,
+                rotation: 0,
+            }
+            const voidBlock = {
+                name: "theVoid",
+                source: "Textures/Void.png",
+                solid: true,
+                rotation: 0,
+            }
+            const EvboBlock = {
+                name: "evboBlock",
+                source: "Textures/evbo block.png",
+                solid: true,
+                rotation: 0,
+            }
+            const Grass = {
+                name: "grass",
+                source: "Textures/Grass.png",
+                solid: false,
+                rotation: 0,
+            }
+            const PathVertical = {
+                name: "pathVertical",
+                source: "Textures/PathVertical.png",
+                solid: false,
+                rotation: 0,
+            }
+            const PathLeftDown = {
+                name: "pathLeftDown",
+                source: "Textures/PathLeftDown.png",
+                solid: false,
+                rotation: 0,
+            }
+            const PathHorizontal = {
+                name: "pathHorizontal",
+                source: "Textures/PathVertical.png",
+                solid: false,
+                rotation: 90,
+            }
+            const Orb = {
+                name: "orb",
+                source: "Textures/Orb.png",
+                solid: true,
+                rotation: 0,
+            }
+            const sixSevenDoor = {
+                name: "sixSeven",
+                source: "Textures/67door.png",
+                solid: false,
+                rotation: 0,
+                interactable: false,
+            }
+            const floortile = {
+                name: "Floor",
+                source: "Textures/floortile.png",
+                solid: false,
+                rotation: 0,
+                interactable: false,
+            }
+            const table = {
+                name: "Table",
+                source: "Textures/table.png",
+                solid: false,
+                rotation: 0,
+                interactable: false,
+            }
+            const wood = {
+                name: "wooden",
+                source: "Textures/wood.png",
+                solid: false,
+                rotation: 0,
+                interactable: false,
+            }
+            const sign = {
+                name: "Sign",
+                source: "Textures/sign.png",
+                solid: false,
+                rotation: 0,
+                interactable: [{profile: "Textures/sign.png", name: "Sign", chat: "Hello. This is a sign."}, {profile: "Textures/sign.png", name: "Sign", chat: "There is a message to be sent to you."}, {profile: "Textures/sign.png", name: "Sign", chat: "Happy Birthday Ate Ish!"}],
+            }
+            const tileTypes = [voidBlock, Grass, PathHorizontal, PathLeftDown, PathVertical, EvboBlock, Orb, sixSevenDoor, floortile, table, wood, sign];
+
+            
+            //functions
+            function getTile (tile) {
+                for(let i = 0; i < tileTypes.length; i++) {
+                    if(tileTypes[i].name === tile) {
+                        return tileTypes[i];
+                    }
+                }
+                return ashswag;//to the adoption center
+            }
+            function changePosition (element) {
+                    element.style.top = tileY+"px";
+                    element.style.left = tileX+"px";
+                    }
+            function isColliding (element1, element2) {
+                const ele1 = element1.getBoundingClientRect();
+                const ele2 = element2.getBoundingClientRect();
+
+                return(
+                    ele1.left < ele2.right &&
+                    ele1.right > ele2.left &&
+                    ele1.top < ele2.bottom &&
+                    ele1.bottom > ele2.top
+                );
+            }
+            function stamp (tile) {
+                let dupe;
+                let privateNumber;
+                let newTile;
+                privateNumber = tileNumber;
+                tileNumber++;
+                map.push(tile.name);
+                dupe = tileForDupe.cloneNode(false);
+                dupe.src = tile.source;
+                changePosition(dupe);
+                document.body.appendChild(dupe);
+                tileX+=width;
+                currentFitX+=1;
+                if(tile.solid) {solidTiles.push(dupe);}
+                if(tileX > screensizeW*3) {//SCREENSIZEW
+                    tileX = 0;
+                    currentFitX = 0;
+                    tileY+=height;
+                    currentFitY+=1;
+                }
+                dupe.style.transform = `rotate(${tile.rotation}deg)`;
+                dupe.addEventListener("click", () => {
+                    if(tileTypes.includes(tile)) {
+                        if(newTile===null) {
+                            if (tileTypes.indexOf(tile)+1<tileTypes.length) {
+                                newTile = tileTypes[tileTypes.indexOf(tile)+1];
+                                map[privateNumber] = newTile.name; 
+                            } else {
+                                newTile = tileTypes[0];
+                                map[privateNumber] = newTile.name; 
+                            }
+                        } else {
+                            if (tileTypes.indexOf(newTile)+1< tileTypes.length) {
+                                newTile = tileTypes[tileTypes.indexOf(newTile)+1];
+                                map[privateNumber] = newTile.name; 
+                            } else {
+                                newTile = tileTypes[0];
+                                map[privateNumber] = newTile.name; 
+                            }
+                        }
+                    }
+                    if(newTile.solid) {solidTiles.push(dupe);}
+                    dupe.src = newTile.source;
+                    dupe.style.transform = `rotate(${newTile.rotation}deg)`;
+                });
+            }
+            function path () {
+                for(let i = 0; tileY<screensizeH*3; i++) {//SCREENSIZEH
+                    stamp(getTile("grass"));
+                }
+            }
+            path();
+            document.addEventListener("keydown", (event) => {
+                event.preventDefault();
+                if(!keydown) {
+                    keydown = true; 
+                    character.src = "Textures/Character(front, animate).gif";
+                    interval = setInterval(() => {
+                        if(event.key.startsWith("Arrow")) {
+                            if(event.ctrlKey) {var speed = sprintSpeed} else {var speed = moveSpeed} 
+                            switch (event.key) {
+                                case "ArrowUp" : window.scrollBy(0, -speed); break;
+                                case "ArrowDown" : window.scrollBy(0, speed); break;
+                                case "ArrowLeft" : window.scrollBy(-speed, 0); break;
+                                case "ArrowRight" : window.scrollBy(speed, 0); break;
+                            }
+                        }
+                        solidTiles.forEach(tile => {
+                            if(isColliding(tile, character)) {
+                                switch (event.key) {
+                                case "ArrowUp" : window.scrollBy(0, speed); break;
+                                case "ArrowDown" : window.scrollBy(0, -speed); break;
+                                case "ArrowLeft" : window.scrollBy(speed, 0); break;
+                                case "ArrowRight" : window.scrollBy(-speed, 0); break;
+                            }
+                            }
+                        });
+                    }, 50);
+                }
+                if(event.key===" ") {
+                    alert(map);
+                    navigator.clipboard.writeText(map)
+                        .then(() => {
+                            console.log("Text copied to clipboard!");
+                        })
+                        .catch(err => {
+                            console.error("Failed to copy: ", err);
+                        });
+                }
+            });
+            document.addEventListener("keyup", () => {
+                    character.src = "Textures/Character(front, idle).png";
+                    clearInterval(interval);
+                    keydown = false;
+            });
+            window.addEventListener("wheel", (event) => {
+                event.preventDefault();
+            }, { passive: false });
+        </script>
+    </body>
+</html>
